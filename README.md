@@ -3,4 +3,4 @@ In order to make the angular `templateUrl` work, you'll need a static file serve
 
 - ``npm install -g http-server``
 - ``http-server -c-1``
-
+- open http://localhost:8080
