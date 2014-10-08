@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <style>
+            div.clear{
+                clear: both;
+            }
+            div.grid{
+                min-height: 50px;
+                min-width: 50px;
+                height: 50px;
+                width: 50px;
+                background-color: black;
+                float: left;
+                margin: 2px;
+            }
+            div.selected{
+                background-color: red;
+            }
+        </style>
+    </head>
+    <body ng-app="dm">
+    <div class="container" ng-controller="mainController">
+        <div jc-drum-machine speed="speed"></div>
+    </div>
+        <script src="angular.min.js"></script>
+        <script type="text/javascript">
+            angular
+                .module('dm', [])
+
+                .controller('mainController', function ($scope) {
+                    $scope.speed = 120;
+                })
+
+                .directive('jcDrumMachine', ['$interval', function ($interval) {
+                    return {
+                        scope: {
+                            speed: '='
+                        },
+                        templateUrl: 'jcDrumMachine.html',
+                        controller: function ($scope) {
+                            $scope.arrange = function (tracks) {
+                                var audio = $scope.audioContext;
+                                var offset = $scope.arranged;
+                                var barLength = 240 / $scope.speed;
+                                var beatLength = barLength / 8;
+                                $scope.tracks.forEach(function (track) {
+                                    if (!track.oscNode) {
+
+                                        track.gainNode = audio.createGain();
+                                        track.gainNode.gain.value = 0;
+                                        track.gainNode.connect(audio.destination);
+
+                                        track.oscNode = audio.createOscillator();
+                                        track.oscNode.frequency.value = track.frequency;
+                                        track.oscNode.type = track.wave;
+                                        track.oscNode.connect(track.gainNode);
+                                        track.oscNode.start(0);
+
+                                    }
+                                    var beats = track.grids.map(function (g, i) {
+                                        if(g) {
+                                            return offset + i * beatLength;
+                                        }
+                                        return null;
+                                    }).filter(function (it) {
+                                        return it !== null;
+                                    });
+
+                                    beats.forEach(function (startTime) {
+                                        track.gainNode.gain.setValueAtTime(1, startTime);
+                                        track.gainNode.gain.setValueAtTime(0, startTime + track.duration);
+                                    });
+
+                                });
+                                $scope.arranged += barLength;
+                            };
+                        },
+                        link: function (scope, element, attrs) {
+                            var ARRANGE_BEFORE = 0.5;
+                            scope.tracks = [
+                                {
+                                    frequency: 440,
+                                    duration: 0.1,
+                                    wave: 'sine'
+                                },
+                                {
+                                    frequency: 110,
+                                    duration: 0.12,
+                                    wave: 'square'
+                                },
+                                {
+                                    frequency: 880,
+                                    duration: 0.09,
+                                    wave: 'triangle'
+                                },
+                            ];
+                            scope.audioContext = new window.AudioContext();
+                            scope.arranged = scope.audioContext.currentTime;
+                            $interval(function () {
+                                var current = scope.audioContext.currentTime;
+                                if(scope.arranged - current < ARRANGE_BEFORE) {
+                                    scope.arrange(scope.tracks);
+                                }
+                            }, 50);
+                        }
+                    };
+                }])
+
+                .directive('jcTrack', [function () {
+                    return {
+                        scope: {
+                            track: "=jcTrack"
+                        },
+                        templateUrl: 'jcTrack.html',
+                        controller: function ($scope) {
+                            $scope.toggle = function (index) {
+                                var val = $scope.track.grids[index];
+                                $scope.track.grids[index] = !val;
+                            };
+                        },
+                        link: function (scope, element, attrs) {
+                            scope.track.grids = [
+                                false,
+                                false,
+                                false,
+                                false,
+                                false,
+                                false,
+                                false,
+                                false
+                            ];
+                            scope.$watch('track.grids', function (grids) {
+                                console.log(grids);
+                            }, true);
+                        }
+                    };
+                }]);
+
+        </script>
+    </body>
+</html>
